@@ -1086,6 +1086,10 @@ void Navigation::SetFocusedChangedDuringOngoingNavigation(
   mFocusChangedDuringOngoingNavigation = aFocusChangedDUringOngoingNavigation;
 }
 
+bool Navigation::HasOngoingNavigateEvent() const {
+  return mOngoingNavigateEvent;
+}
+
 // The associated document of navigation's relevant global object.
 Document* Navigation::GetAssociatedDocument() const {
   nsGlobalWindowInner* window = GetOwnerWindow();
