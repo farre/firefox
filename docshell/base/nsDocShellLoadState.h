@@ -8,6 +8,7 @@
 #define nsDocShellLoadState_h__
 
 #include "mozilla/dom/BrowsingContext.h"
+#include "mozilla/dom/NavigationBinding.h"
 #include "mozilla/dom/SessionHistoryEntry.h"
 #include "mozilla/dom/UserNavigationInvolvement.h"
 
@@ -194,6 +195,11 @@ class nsDocShellLoadState final {
       mozilla::UniquePtr<mozilla::dom::LoadingSessionHistoryInfo> aLoadingInfo);
 
   bool LoadIsFromSessionHistory() const;
+
+  nsIStructuredCloneContainer* GetNavigationAPIState() const;
+  void SetNavigationAPIState(nsIStructuredCloneContainer* aNavigationAPIState);
+
+  mozilla::dom::NavigationType GetNavigationType() const;
 
   const nsString& Target() const;
 
@@ -551,6 +557,8 @@ class nsDocShellLoadState final {
   // Loading session history info for the load
   mozilla::UniquePtr<mozilla::dom::LoadingSessionHistoryInfo>
       mLoadingSessionHistoryInfo;
+
+  nsCOMPtr<nsIStructuredCloneContainer> mNavigationAPIState;
 
   // Target for load, like _content, _blank etc.
   nsString mTarget;
