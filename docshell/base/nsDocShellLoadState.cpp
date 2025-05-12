@@ -766,7 +766,6 @@ void nsDocShellLoadState::SetNavigationAPIState(
 }
 
 NavigationType nsDocShellLoadState::GetNavigationType() const {
-  // This needs to be expanded
   return LoadReplace() ? NavigationType::Replace : NavigationType::Push;
 }
 
