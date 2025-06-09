@@ -137,6 +137,7 @@ using mozilla::glean::perf::PageLoadExtra from "mozilla/glean/DomMetrics.h";
 using mozilla::dom::MaybeDiscardedBrowsingContext from "mozilla/dom/BrowsingContext.h";
 using mozilla::dom::BrowsingContextTransaction from "mozilla/dom/BrowsingContext.h";
 using mozilla::dom::BrowsingContextInitializer from "mozilla/dom/BrowsingContext.h";
+using mozilla::dom::NavigablesFilter from "nsIDocumentViewer.h";
 using mozilla::dom::PermitUnloadResult from "nsIDocumentViewer.h";
 using mozilla::dom::MaybeDiscardedWindowContext from "mozilla/dom/WindowContext.h";
 using mozilla::dom::WindowContextTransaction from "mozilla/dom/WindowContext.h";
@@ -1054,9 +1055,9 @@ child:
     async DispatchLocationChangeEvent(MaybeDiscardedBrowsingContext aContext);
 
     // Dispatches a "beforeunload" event to each in-process content window in the
-    // subtree beginning at `aStartingAt`, and returns the result as documented in
-    // the `PermitUnloadResult` enum.
-    async DispatchBeforeUnloadToSubtree(MaybeDiscardedBrowsingContext aStartingAt)
+    // subtree beginning at `aStartingAt`, matching `aFilter` and returns the result
+    // as documented in the `PermitUnloadResult` enum.
+    async DispatchBeforeUnloadToSubtree(MaybeDiscardedBrowsingContext aStartingAt, NavigablesFilter aFilter)
         returns (PermitUnloadResult result);
 
     // Update the cached list of codec supported in the given process.

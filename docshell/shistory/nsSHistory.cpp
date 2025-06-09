@@ -1413,11 +1413,11 @@ void nsSHistory::LoadURIOrBFCache(LoadEntryResult& aLoadEntry) {
             frameLoaderOwner->GetFrameLoader();
         if (currentFrameLoader &&
             currentFrameLoader->GetMaybePendingBrowsingContext()) {
-          if (WindowGlobalParent* wgp =
+          if (RefPtr<WindowGlobalParent> wgp =
                   currentFrameLoader->GetMaybePendingBrowsingContext()
                       ->Canonical()
                       ->GetCurrentWindowGlobal()) {
-            wgp->PermitUnload(
+            auto resolver =
                 [canonicalBC, loadState, she, frameLoader, currentFrameLoader,
                  canSave](bool aAllow) MOZ_CAN_RUN_SCRIPT_BOUNDARY_LAMBDA {
                   if (aAllow && !canonicalBC->IsReplaced()) {
@@ -1434,7 +1434,16 @@ void nsSHistory::LoadURIOrBFCache(LoadEntryResult& aLoadEntry) {
                       shistory->InternalSetRequestedIndex(-1);
                     }
                   }
-                });
+                };
+            auto fireTraverse =
+                [top = RefPtr{wgp->TopWindowContext()},
+                 userInvolvement = loadState->UserNavigationInvolvement(), she,
+                 resolver](std::function<void(bool)>&& aCallback) {
+                  top->SendFireTraverseNavigateEvent(
+                      she->Info(), userInvolvement, aCallback,
+                      [aCallback](auto) { aCallback(true); });
+                };
+            wgp->PermitUnload(fireTraverse, resolver);
             return;
           }
         }

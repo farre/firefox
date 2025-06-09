@@ -8,6 +8,7 @@
 
 #include "mozilla/AntiTrackingUtils.h"
 #include "mozilla/ClearOnShutdown.h"
+#include "mozilla/dom/Navigation.h"
 #include "mozilla/dom/WindowGlobalParent.h"
 #include "mozilla/dom/BrowsingContext.h"
 #include "mozilla/dom/BrowsingContextGroup.h"
@@ -592,6 +593,28 @@ IPCResult WindowGlobalChild::RecvNavigateForIdentityCredentialDiscovery(
     return IPC_OK();
   }
   Unused << outer->OpenJS(aURI, u"_top"_ns, u""_ns, getter_AddRefs(newBC));
+  return IPC_OK();
+}
+
+IPCResult WindowGlobalChild::RecvFireTraverseNavigateEvent(
+    SessionHistoryInfo&& aSessionHistoryInfo,
+    UserNavigationInvolvement aUserInvolvement,
+    FireTraverseNavigateEventResolver&& aResolve) {
+  if (!mWindowGlobal) {
+    aResolve(true);
+  }
+
+  bool shouldContinue = true;
+
+  if (RefPtr<Navigation> navigation = mWindowGlobal->Navigation()) {
+    AutoJSAPI jsapi;
+    if (jsapi.Init(mWindowGlobal)) {
+      navigation->FireTraverseNavigateEvent(jsapi.cx(), &aSessionHistoryInfo,
+                                            Some(aUserInvolvement));
+    }
+  }
+
+  aResolve(shouldContinue);
   return IPC_OK();
 }
 

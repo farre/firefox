@@ -7508,17 +7508,57 @@ mozilla::ipc::IPCResult ContentParent::RecvReportServiceWorkerShutdownProgress(
 mozilla::ipc::IPCResult ContentParent::RecvNotifyOnHistoryReload(
     const MaybeDiscarded<BrowsingContext>& aContext, const bool& aForceReload,
     NotifyOnHistoryReloadResolver&& aResolver) {
-  bool canReload = false;
-  Maybe<NotNull<RefPtr<nsDocShellLoadState>>> loadState;
-  Maybe<bool> reloadActiveEntry;
-  if (!aContext.IsNullOrDiscarded()) {
-    aContext.get_canonical()->NotifyOnHistoryReload(
-        aForceReload, canReload, loadState, reloadActiveEntry);
+  bool resolveWithFailure = true;
+  auto onExit = MakeScopeExit([aResolver, resolveWithFailure]() {
+    if (!resolveWithFailure) {
+      return;
+    }
+
+    bool canReload = false;
+    Maybe<NotNull<RefPtr<nsDocShellLoadState>>> loadState;
+    Maybe<bool> reloadActiveEntry;
+
+    aResolver(std::tuple<const bool&,
+                         const Maybe<NotNull<RefPtr<nsDocShellLoadState>>>&,
+                         const Maybe<bool>&>(canReload, loadState,
+                                             reloadActiveEntry));
+  });
+
+  if (aContext.IsNullOrDiscarded()) {
+    return IPC_OK();
   }
-  aResolver(
-      std::tuple<const bool&,
-                 const Maybe<NotNull<RefPtr<nsDocShellLoadState>>>&,
-                 const Maybe<bool>&>(canReload, loadState, reloadActiveEntry));
+
+  RefPtr canonicalBrowsingContxt = aContext.get_canonical();
+  RefPtr<WindowGlobalParent> windowParent =
+      canonicalBrowsingContxt->GetParentWindowContext();
+  if (!windowParent) {
+    return IPC_OK();
+  }
+
+  RefPtr<SessionHistoryEntry> sessionHistoryEntry =
+      canonicalBrowsingContxt->GetActiveSessionHistoryEntry();
+  auto fireTraverse = [top = RefPtr{windowParent->TopWindowContext()},
+                       userInvolvement = UserNavigationInvolvement::None,
+                       sessionHistoryEntry](
+                          std::function<void(bool)>&& aCallback) {
+    top->SendFireTraverseNavigateEvent(sessionHistoryEntry->Info(),
+                                       userInvolvement, aCallback,
+                                       [aCallback](auto) { aCallback(true); });
+  };
+  auto onHistoryReload = [aForceReload, aResolver,
+                          canonicalBrowsingContxt](bool aPermit) {
+    bool canReload = false;
+    Maybe<NotNull<RefPtr<nsDocShellLoadState>>> loadState;
+    Maybe<bool> reloadActiveEntry;
+
+    if (aPermit) {
+      canonicalBrowsingContxt->NotifyOnHistoryReload(
+          aForceReload, canReload, loadState, reloadActiveEntry);
+    }
+  };
+  windowParent->PermitUnload(fireTraverse, onHistoryReload);
+  resolveWithFailure = false;
+
   return IPC_OK();
 }
 

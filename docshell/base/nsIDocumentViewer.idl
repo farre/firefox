@@ -85,22 +85,51 @@ interface nsIDocumentViewer : nsISupports
     eRequestBlockNavigation = 1,
   };
 
+
+  /**
+  * Filter which targets that the "beforeunload" event should be dispatched to.
+  *
+  * eAll: Dispatch to all documents.
+  * eSelf: Only dispatch to the current document.
+  * eChildren: Dispatch to all ancestors of the current document.
+  */
+  cenum NavigablesFilter : 8 {
+    eAll = 0,
+    eSelf = 1,
+    eChildren =2,
+  };
+
   /**
    * Overload PermitUnload method for C++ consumers with no aPermitUnloadFlags
+   * argument and no aFilterNavigables argument.
+   */
+  %{C++
+  nsresult PermitUnload(bool* canUnload) {
+    bool promptShown = false;
+    return PermitUnload(ePrompt, eAll, &promptShown, canUnload);
+  }
+  %}
+
+  /**
+   * Overload PermitUnload method for C++ consumers with no aFilterNavigables
    * argument.
    */
   %{C++
-    nsresult PermitUnload(bool* canUnload) {
-      return PermitUnload(ePrompt, canUnload);
-    }
+  nsresult PermitUnload(PermitUnloadAction aAction, bool* canUnload) {
+    bool promptShown = false;
+    return PermitUnload(aAction, eAll, &promptShown, canUnload);
+  }
   %}
+
 
   /**
    * Checks if the document wants to prevent unloading by firing beforeunload on
    * the document.
    * The result is returned.
    */
-  boolean permitUnload([optional] in nsIDocumentViewer_PermitUnloadAction aAction);
+  boolean permitUnload([optional] in nsIDocumentViewer_PermitUnloadAction aAction,
+                       [optional] in nsIDocumentViewer_NavigablesFilter aFilter,
+                       [optional] out boolean aPromptShown);
 
   /**
    * Exposes whether we're blocked in a call to permitUnload.
@@ -313,6 +342,7 @@ namespace dom {
 
 using XPCOMPermitUnloadAction = nsIDocumentViewer::PermitUnloadAction;
 using PermitUnloadResult = nsIDocumentViewer::PermitUnloadResult;
+using NavigablesFilter = nsIDocumentViewer::NavigablesFilter;
 
 } // namespace dom
 } // namespace mozilla

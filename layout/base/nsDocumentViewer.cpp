@@ -1149,6 +1149,7 @@ bool nsDocumentViewer::GetIsStopped() { return mStopped; }
 
 NS_IMETHODIMP
 nsDocumentViewer::PermitUnload(PermitUnloadAction aAction,
+                               NavigablesFilter aFilter, bool* aPromptShown,
                                bool* aPermitUnload) {
   // We're going to be running JS and nested event loops, which could cause our
   // DocShell to be destroyed. Make sure we stay alive until the end of the

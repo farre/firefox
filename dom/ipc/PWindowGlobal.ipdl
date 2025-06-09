@@ -41,6 +41,8 @@ using mozilla::dom::IdentityCredentialInit from "mozilla/dom/IdentityCredentialB
 using mozilla::dom::IdentityCredentialRequestOptions from "mozilla/dom/IdentityCredentialBinding.h";
 using mozilla::dom::IdentityLoginTargetType from "mozilla/dom/IdentityCredentialBinding.h";
 using mozilla::dom::LoginStatus from "mozilla/dom/LoginStatusBinding.h";
+using class mozilla::dom::SessionHistoryInfo from "mozilla/dom/SessionHistoryEntry.h";
+using mozilla::dom::UserNavigationInvolvement from "mozilla/dom/UserNavigationInvolvement.h";
 
 namespace mozilla {
 namespace dom {
@@ -245,6 +247,10 @@ parent:
 
 child:
   async NotifyPermissionChange(nsCString type, uint32_t permission);
+
+  async FireTraverseNavigateEvent(SessionHistoryInfo aInfo,
+                                  UserNavigationInvolvement aUserInvolvement)
+    returns (bool navigateEventResult);
 };
 
 } // namespace dom

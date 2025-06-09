@@ -788,14 +788,32 @@ namespace {
 class CheckPermitUnloadRequest final : public PromiseNativeHandler,
                                        public nsITimerCallback {
  public:
+  template <NavigablesFilter filter, typename F>
+  static void GetNavigables(BrowsingContext* aRoot, F&& aCallback) {
+    if constexpr (filter == NavigablesFilter::eSelf) {
+      aCallback(aRoot);
+    } else {
+      aRoot->PreOrderWalk([&](BrowsingContext* aBrowsingContext) {
+        if constexpr (filter == NavigablesFilter::eChildren) {
+          if (aRoot == aBrowsingContext) {
+            return;
+          }
+        }
+
+        aCallback(aBrowsingContext);
+      });
+    }
+  }
+
   CheckPermitUnloadRequest(WindowGlobalParent* aWGP, bool aHasInProcessBlocker,
                            nsIDocumentViewer::PermitUnloadAction aAction,
-                           std::function<void(bool)>&& aResolver)
+                           std::function<void(bool, bool)>&& aResolver)
       : mResolver(std::move(aResolver)),
         mWGP(aWGP),
         mAction(aAction),
         mFoundBlocker(aHasInProcessBlocker) {}
 
+  template <NavigablesFilter filter>
   void Run(ContentParent* aIgnoreProcess = nullptr, uint32_t aTimeout = 0) {
     MOZ_ASSERT(mState == State::UNINITIALIZED);
     mState = State::WAITING;
@@ -808,7 +826,7 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
     }
 
     BrowsingContext* bc = mWGP->GetBrowsingContext();
-    bc->PreOrderWalk([&](dom::BrowsingContext* aBC) {
+    GetNavigables<filter>(bc, [&](dom::BrowsingContext* aBC) {
       if (WindowGlobalParent* wgp =
               aBC->Canonical()->GetCurrentWindowGlobal()) {
         ContentParent* cp = wgp->GetContentParent();
@@ -823,9 +841,9 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
           };
           if (cp) {
             cp->SendDispatchBeforeUnloadToSubtree(
-                bc, resolve, [self](auto) { self->ResolveRequest(); });
+                bc, filter, resolve, [self](auto) { self->ResolveRequest(); });
           } else {
-            ContentChild::DispatchBeforeUnloadToSubtree(bc, resolve);
+            ContentChild::DispatchBeforeUnloadToSubtree(bc, filter, resolve);
           }
         }
       }
@@ -869,7 +887,7 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
     mTimer = nullptr;
 
     if (!mFoundBlocker) {
-      SendReply(true);
+      SendReply(/* aAllow*/ true, /* aPromptShown*/ false);
       return;
     }
 
@@ -878,13 +896,13 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
       action = nsIDocumentViewer::eDontPromptAndUnload;
     }
     if (action != nsIDocumentViewer::ePrompt) {
-      SendReply(action == nsIDocumentViewer::eDontPromptAndUnload);
+      SendReply(/* aAllow*/ action == nsIDocumentViewer::eDontPromptAndUnload);
       return;
     }
 
     // Handle any failure in prompting by aborting the navigation. See comment
     // in nsDocumentViewer::PermitUnload for reasoning.
-    auto cleanup = MakeScopeExit([&]() { SendReply(false); });
+    auto cleanup = MakeScopeExit([&]() { SendReply(/* aAllow*/ false); });
 
     if (nsCOMPtr<nsIPromptCollection> prompt =
             do_GetService("@mozilla.org/embedcomp/prompt-collection;1")) {
@@ -901,9 +919,9 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
     }
   }
 
-  void SendReply(bool aAllow) {
+  void SendReply(bool aAllow, bool aPromptShown = false) {
     MOZ_ASSERT(mState != State::REPLIED);
-    mResolver(aAllow);
+    mResolver(aAllow, aPromptShown);
     mState = State::REPLIED;
   }
 
@@ -911,14 +929,14 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
                         ErrorResult& aRv) override {
     MOZ_ASSERT(mState == State::PROMPTING);
 
-    SendReply(JS::ToBoolean(aValue));
+    SendReply(JS::ToBoolean(aValue), /* aPromptShown*/ true);
   }
 
   void RejectedCallback(JSContext* aCx, JS::Handle<JS::Value> aValue,
                         ErrorResult& aRv) override {
     MOZ_ASSERT(mState == State::PROMPTING);
 
-    SendReply(false);
+    SendReply(/* aAllow*/ false, /* aPromptShown*/ true);
   }
 
   NS_DECL_ISUPPORTS
@@ -940,7 +958,7 @@ class CheckPermitUnloadRequest final : public PromiseNativeHandler,
     REPLIED,
   };
 
-  std::function<void(bool)> mResolver;
+  std::function<void(bool, bool)> mResolver;
 
   RefPtr<WindowGlobalParent> mWGP;
   nsCOMPtr<nsITimer> mTimer;
@@ -967,8 +985,12 @@ mozilla::ipc::IPCResult WindowGlobalParent::RecvCheckPermitUnload(
   }
 
   auto request = MakeRefPtr<CheckPermitUnloadRequest>(
-      this, aHasInProcessBlocker, aAction, std::move(aResolver));
-  request->Run(/* aIgnoreProcess */ GetContentParent());
+      this, aHasInProcessBlocker, aAction,
+      [resolver = std::move(aResolver)](bool aPermit, bool) {
+        resolver(aPermit);
+      });
+  request->Run<NavigablesFilter::eAll>(
+      /* aIgnoreProcess */ GetContentParent());
 
   return IPC_OK();
 }
@@ -984,17 +1006,71 @@ already_AddRefed<Promise> WindowGlobalParent::PermitUnload(
   auto request = MakeRefPtr<CheckPermitUnloadRequest>(
       this, /* aHasInProcessBlocker */ false,
       nsIDocumentViewer::PermitUnloadAction(aAction),
-      [promise](bool aAllow) { promise->MaybeResolve(aAllow); });
-  request->Run(/* aIgnoreProcess */ nullptr, aTimeout);
+      [promise](bool aAllow, bool) { promise->MaybeResolve(aAllow); });
+  request->Run<NavigablesFilter::eAll>(
+      /* aIgnoreProcess */ nullptr, aTimeout);
 
   return promise.forget();
 }
 
 void WindowGlobalParent::PermitUnload(std::function<void(bool)>&& aResolver) {
-  RefPtr<CheckPermitUnloadRequest> request = new CheckPermitUnloadRequest(
+  auto request = MakeRefPtr<CheckPermitUnloadRequest>(
       this, /* aHasInProcessBlocker */ false,
-      nsIDocumentViewer::PermitUnloadAction::ePrompt, std::move(aResolver));
-  request->Run();
+      nsIDocumentViewer::PermitUnloadAction::ePrompt,
+      [resolver = std::move(aResolver)](bool aPermit, bool) {
+        resolver(aPermit);
+      });
+  request->Run<NavigablesFilter::eAll>();
+}
+
+// A subset of the steps in
+// https://html.spec.whatwg.org/#checking-if-unloading-is-canceled when passed a
+// traversable are executed by WindowGlobalParent::PermitUnload. In particular,
+// the staggered unload prompt checks and indication of when firing of the
+// traversable navigate event should take place.
+void WindowGlobalParent::PermitUnload(
+    std::function<void(std::function<void(bool)>&&)>&& aAfterBeforeunload,
+    std::function<void(bool)>&& aResolver) {
+  if (BrowsingContext()->IsTop()) {
+    auto request = MakeRefPtr<CheckPermitUnloadRequest>(
+        this, /* aHasInProcessBlocker */ false,
+        nsIDocumentViewer::PermitUnloadAction::ePrompt,
+        [this, aAfterBeforeunload, aResolver](bool aPermit, bool aPromptShown) {
+          if (!aPermit) {
+            aResolver(false);
+          }
+
+          aAfterBeforeunload([this, aPromptShown,
+                              aResolver](bool aNavigateEventResult) {
+            if (!aNavigateEventResult) {
+              aResolver(false);
+            }
+
+            auto request = MakeRefPtr<CheckPermitUnloadRequest>(
+                this, /* aHasInProcessBlocker */ false,
+                aPromptShown ? nsIDocumentViewer::PermitUnloadAction::
+                                   eDontPromptAndUnload
+                             : nsIDocumentViewer::PermitUnloadAction::ePrompt,
+                [resolver = aResolver](bool aPermit, bool) {
+                  resolver(aPermit);
+                });
+            request->Run<NavigablesFilter::eChildren>();
+          });
+        });
+    request->Run<NavigablesFilter::eSelf>();
+  } else {
+    aAfterBeforeunload([this, aResolver](bool aNavigateEventResult) {
+      if (!aNavigateEventResult) {
+        aResolver(false);
+      }
+
+      auto request = MakeRefPtr<CheckPermitUnloadRequest>(
+          this, /* aHasInProcessBlocker */ false,
+          nsIDocumentViewer::PermitUnloadAction::ePrompt,
+          [resolver = aResolver](bool aPermit, bool) { resolver(aPermit); });
+      request->Run<NavigablesFilter::eAll>();
+    });
+  }
 }
 
 already_AddRefed<mozilla::dom::Promise> WindowGlobalParent::DrawSnapshot(

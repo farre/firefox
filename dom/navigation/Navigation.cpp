@@ -40,6 +40,10 @@
 
 mozilla::LazyLogModule gNavigationLog("Navigation");
 
+#define LOG_NAVF(str, ...)                                           \
+  MOZ_LOG_FMT(gNavigationLog, LogLevel::Debug, "{}: " str, __func__, \
+              ##__VA_ARGS__)
+
 namespace mozilla::dom {
 
 struct NavigationAPIMethodTracker final : public nsISupports {
@@ -589,6 +593,8 @@ bool Navigation::FirePushReplaceReloadNavigateEvent(
                                            /* aState */ nullptr,
                                            aIsSameDocument);
 
+  LOG_NAVF("aIsSameDocument={}", aIsSameDocument);
+
   // Step 8
   return InnerFireNavigateEvent(
       aCx, aNavigationType, destination,
@@ -757,7 +763,7 @@ bool Navigation::InnerFireNavigateEvent(
   }
 
   // Step 4
-  MOZ_DIAGNOSTIC_ASSERT(!destinationKey || destinationKey->Equals(nsID{}));
+  MOZ_DIAGNOSTIC_ASSERT(!destinationKey || !destinationKey->Equals(nsID{}));
 
   // Step 5
   PromoteUpcomingAPIMethodTrackerToOngoing(std::move(destinationKey));
@@ -858,6 +864,8 @@ bool Navigation::InnerFireNavigateEvent(
 
   // Step 28
   mSuppressNormalScrollRestorationDuringOngoingNavigation = false;
+
+  LOG_NAVF("Fire {}", *event);
 
   // Step 29 and step 30
   if (!DispatchEvent(*event, CallerType::NonSystem, IgnoreErrors())) {
@@ -1282,3 +1290,5 @@ Navigation::AddUpcomingTraverseAPIMethodTracker(const nsID& aKey,
                                                            apiMethodTracker);
 }
 }  // namespace mozilla::dom
+
+#undef LOG_NAVF

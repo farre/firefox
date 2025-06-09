@@ -18,6 +18,7 @@ EXPORTS.mozilla.dom += [
 ]
 
 UNIFIED_SOURCES += [
+    "Formatters.cpp",
     "Navigation.cpp",
     "NavigationActivation.cpp",
     "NavigationDestination.cpp",

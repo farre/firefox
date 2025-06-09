@@ -3982,15 +3982,6 @@ nsresult nsDocShell::ReloadNavigable(
     bool forceReload = IsForceReloadType(loadType);
     if (!XRE_IsParentProcess()) {
       ++mPendingReloadCount;
-      nsCOMPtr<nsIDocumentViewer> viewer(mDocumentViewer);
-      NS_ENSURE_STATE(viewer);
-
-      bool okToUnload = true;
-      MOZ_TRY(viewer->PermitUnload(&okToUnload));
-      if (!okToUnload) {
-        return NS_OK;
-      }
-
       RefPtr<Document> doc(GetDocument());
       RefPtr<BrowsingContext> browsingContext(mBrowsingContext);
       nsCOMPtr<nsIURI> currentURI(mCurrentURI);
@@ -9710,8 +9701,7 @@ nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState,
         nsHTTPSOnlyUtils::GetUpgradeMode(isPrivateWin) ==
             nsHTTPSOnlyUtils::HTTPS_FIRST_MODE) {
       rv = mDocumentViewer->PermitUnload(
-          nsIDocumentViewer::PermitUnloadAction::eDontPromptAndUnload,
-          &okToUnload);
+          XPCOMPermitUnloadAction::eDontPromptAndUnload, &okToUnload);
     } else {
       rv = mDocumentViewer->PermitUnload(&okToUnload);
     }

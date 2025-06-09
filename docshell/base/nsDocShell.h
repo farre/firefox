@@ -1162,15 +1162,15 @@ class nsDocShell final : public nsDocLoader,
       mozilla::dom::UserNavigationInvolvement aUserInvolvement =
           mozilla::dom::UserNavigationInvolvement::None);
 
- private:
-  MOZ_CAN_RUN_SCRIPT
-  void InformNavigationAPIAboutAbortingNavigation();
-
   enum class OngoingNavigation : uint8_t { NavigationID, Traversal };
 
   MOZ_CAN_RUN_SCRIPT
   void SetOngoingNavigation(
       const mozilla::Maybe<OngoingNavigation>& aOngoingNavigation);
+
+ private:
+  MOZ_CAN_RUN_SCRIPT
+  void InformNavigationAPIAboutAbortingNavigation();
 
   void SetCurrentURIInternal(nsIURI* aURI);
 

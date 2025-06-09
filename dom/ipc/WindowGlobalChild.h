@@ -204,6 +204,11 @@ class WindowGlobalChild final : public WindowGlobalActor,
   mozilla::ipc::IPCResult RecvNavigateForIdentityCredentialDiscovery(
       const nsCString& aURI, const IdentityLoginTargetType& aType);
 
+  mozilla::ipc::IPCResult RecvFireTraverseNavigateEvent(
+      SessionHistoryInfo&& aSessionHistoryInfo,
+      UserNavigationInvolvement aUserInvolvement,
+      FireTraverseNavigateEventResolver&& aResolve);
+
   virtual void ActorDestroy(ActorDestroyReason aWhy) override;
 
  private:

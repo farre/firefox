@@ -4360,11 +4360,12 @@ mozilla::ipc::IPCResult ContentChild::RecvDispatchLocationChangeEvent(
 
 mozilla::ipc::IPCResult ContentChild::RecvDispatchBeforeUnloadToSubtree(
     const MaybeDiscarded<BrowsingContext>& aStartingAt,
+    const NavigablesFilter& aFilter,
     DispatchBeforeUnloadToSubtreeResolver&& aResolver) {
   if (aStartingAt.IsNullOrDiscarded()) {
     aResolver(nsIDocumentViewer::eAllowNavigation);
   } else {
-    DispatchBeforeUnloadToSubtree(aStartingAt.get(), std::move(aResolver));
+    DispatchBeforeUnloadToSubtree(aStartingAt.get(), aFilter, aResolver);
   }
   return IPC_OK();
 }
@@ -4377,11 +4378,16 @@ mozilla::ipc::IPCResult ContentChild::RecvInitNextGenLocalStorageEnabled(
 }
 
 /* static */ void ContentChild::DispatchBeforeUnloadToSubtree(
-    BrowsingContext* aStartingAt,
+    BrowsingContext* aStartingAt, NavigablesFilter aFilter,
     const DispatchBeforeUnloadToSubtreeResolver& aResolver) {
   bool resolved = false;
+  bool skipRoot = aFilter == NavigablesFilter::eChildren;
 
-  aStartingAt->PreOrderWalk([&](dom::BrowsingContext* aBC) {
+  auto dispatchBeforeUnload = [&](dom::BrowsingContext* aBC) {
+    if (skipRoot && aStartingAt == aBC) {
+      return;
+    }
+
     if (aBC->GetDocShell()) {
       nsCOMPtr<nsIDocumentViewer> viewer;
       aBC->GetDocShell()->GetDocViewer(getter_AddRefs(viewer));
@@ -4396,7 +4402,13 @@ mozilla::ipc::IPCResult ContentChild::RecvInitNextGenLocalStorageEnabled(
         resolved = true;
       }
     }
-  });
+  };
+
+  if (aFilter == NavigablesFilter::eSelf) {
+    dispatchBeforeUnload(aStartingAt);
+  } else {
+    aStartingAt->PreOrderWalk(dispatchBeforeUnload);
+  }
 
   if (!resolved) {
     aResolver(nsIDocumentViewer::eAllowNavigation);
@@ -4618,12 +4630,12 @@ void ContentChild::ConfigureThreadPerformanceHints(
     }
 
 #ifdef MOZ_WIDGET_ANDROID
-    // On Android if we are unable to use PerformanceHintManager then fall back
-    // to setting the stylo threads' affinities to the performant cores. Android
-    // automatically sets each thread's affinity to all cores when a process is
-    // foregrounded, and to a subset of cores when the process is backgrounded.
-    // We must therefore override this each time the process is foregrounded,
-    // but we don't have to do anything when backgrounded.
+    // On Android if we are unable to use PerformanceHintManager then fall
+    // back to setting the stylo threads' affinities to the performant cores.
+    // Android automatically sets each thread's affinity to all cores when a
+    // process is foregrounded, and to a subset of cores when the process is
+    // backgrounded. We must therefore override this each time the process is
+    // foregrounded, but we don't have to do anything when backgrounded.
     if (!mPerformanceHintSession) {
       if (const auto& cpuInfo = hal::GetHeterogeneousCpuInfo()) {
         // If CPUs are homogeneous there is no point setting affinity.

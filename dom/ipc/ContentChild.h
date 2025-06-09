@@ -786,6 +786,7 @@ class ContentChild final : public PContentChild,
 
   mozilla::ipc::IPCResult RecvDispatchBeforeUnloadToSubtree(
       const MaybeDiscarded<BrowsingContext>& aStartingAt,
+      const NavigablesFilter& aFilter,
       DispatchBeforeUnloadToSubtreeResolver&& aResolver);
 
   mozilla::ipc::IPCResult RecvInitNextGenLocalStorageEnabled(
@@ -793,7 +794,7 @@ class ContentChild final : public PContentChild,
 
  public:
   static void DispatchBeforeUnloadToSubtree(
-      BrowsingContext* aStartingAt,
+      BrowsingContext* aStartingAt, NavigablesFilter aFilter,
       const DispatchBeforeUnloadToSubtreeResolver& aResolver);
 
   hal::ProcessPriority GetProcessPriority() const { return mProcessPriority; }
