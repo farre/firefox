@@ -237,7 +237,7 @@ void nsHistory::DeltaTraverse(mozilla::Maybe<JSContext*> aCx, int32_t aDelta,
     RefPtr<nsDocShell> docShell = nsDocShell::Cast(win->GetDocShell());
 
     nsresult rv =
-        docShell->ReloadNavigable(*aCx, nsIWebNavigation::LOAD_FLAGS_NONE);
+        docShell->ReloadNavigable(aCx, nsIWebNavigation::LOAD_FLAGS_NONE);
     if (NS_FAILED(rv)) {
       aRv.Throw(rv);
     }
