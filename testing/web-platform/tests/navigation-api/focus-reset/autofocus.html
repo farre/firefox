@@ -23,7 +23,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -44,7 +44,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -65,7 +65,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -88,7 +88,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -111,7 +111,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -133,7 +133,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");
@@ -155,7 +155,7 @@ promise_test(async t => {
   assert_equals(document.activeElement, decoy, "focus() worked");
 
   navigation.addEventListener("navigate", e => {
-    e.intercept();
+    setTimeout(() => e.intercept(), 0);
   }, { once: true });
 
   const { committed, finished } = navigation.navigate("#1");

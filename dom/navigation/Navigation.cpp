@@ -81,6 +81,7 @@ struct NavigationAPIMethodTracker final : public nsISupports {
       // We drop it do now for efficiency.
       mSerializedState = nullptr;
     }
+    MOZ_DBG(mCommittedPromise);
     mCommittedPromise->MaybeResolve(aNHE);
   }
 
@@ -90,6 +91,7 @@ struct NavigationAPIMethodTracker final : public nsISupports {
     // Step 1
     MOZ_DIAGNOSTIC_ASSERT(mCommittedToEntry);
     // Step 2
+    MOZ_DBG(mFinishedPromise);
     mFinishedPromise->MaybeResolve(mCommittedToEntry);
     // Step 3
     CleanUp();
