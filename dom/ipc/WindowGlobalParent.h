@@ -162,13 +162,14 @@ class WindowGlobalParent final : public WindowContext,
 
   void PermitUnload(std::function<void(bool)>&& aResolver);
 
-  void PermitUnloadTraversable(const SessionHistoryInfo& aInfo,
-                               nsIDocumentViewer::PermitUnloadAction aAction,
-                               std::function<void(bool)>&& aResolver);
+  void PermitUnloadTraversable(
+      const SessionHistoryInfo& aInfo,
+      nsIDocumentViewer::PermitUnloadAction aAction,
+      std::function<void(nsIDocumentViewer::PermitUnloadResult)>&& aResolver);
 
   void PermitUnloadChildNavigables(
       nsIDocumentViewer::PermitUnloadAction aAction,
-      std::function<void(bool)>&& aResolverm);
+      std::function<void(nsIDocumentViewer::PermitUnloadResult)>&& aResolver);
 
   already_AddRefed<mozilla::dom::Promise> DrawSnapshot(
       const DOMRect* aRect, double aScale, const nsACString& aBackgroundColor,
