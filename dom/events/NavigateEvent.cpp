@@ -497,6 +497,25 @@ static void RestoreScrollPositionData(Document* aDocument,
   docShell->RestoreScrollPositionFromTargetSessionHistoryInfo(aHistoryEntry);
 }
 
+SessionHistoryInfo* GetActiveSessionHistoryEntry(nsIGlobalObject* aGlobal) {
+  nsCOMPtr<nsPIDOMWindowInner> win = do_QueryInterface(aGlobal);
+  if (!win) {
+    return nullptr;
+  }
+
+  BrowsingContext* navigable = win->GetBrowsingContext();
+  if (!navigable) {
+    return nullptr;
+  }
+
+  nsDocShell* docShell = nsDocShell::Cast(navigable->GetDocShell());
+  if (!docShell) {
+    return nullptr;
+  }
+
+  return docShell->GetActiveSessionHistoryInfo();
+}
+
 // https://html.spec.whatwg.org/#process-scroll-behavior
 void NavigateEvent::ProcessScrollBehavior() {
   // Step 1
@@ -509,17 +528,8 @@ void NavigateEvent::ProcessScrollBehavior() {
   if (mNavigationType == NavigationType::Traverse ||
       mNavigationType == NavigationType::Reload) {
     RefPtr<Document> document = GetAssociatedDocument();
-    // SHIP changes the active entry in
-    // `nsDocShell::HandleSameDocumentNavigation`, which breaks with Navigation
-    // API spec steps as it's too late, and at this point, the actual "active
-    // session history entry" will become the target session history entry
-    // provided here, which is why we're using this instead of
-    // nsDocShell::mActiveEntry
-    RestoreScrollPositionData(
-        document, mLastScrollGeneration,
-        mDestination->GetEntry()
-            ? mDestination->GetEntry()->SessionHistoryInfo()
-            : nullptr);
+    RestoreScrollPositionData(document, mLastScrollGeneration,
+                              GetActiveSessionHistoryEntry(GetParentObject()));
     return;
   }
 

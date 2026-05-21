@@ -12852,6 +12852,15 @@ bool nsDocShell::GetIsAttemptingToNavigate() {
   return mCheckingSessionHistory;
 }
 
+void nsDocShell::ActivateHistoryEntry(
+    std::unique_ptr<mozilla::dom::SessionHistoryInfo> aSessionHistoryInfo) {
+  if (mActiveEntry) {
+    // save persisted state
+  }
+
+  mActiveEntry = std::move(aSessionHistoryInfo);
+}
+
 mozilla::dom::SessionHistoryInfo* nsDocShell::GetActiveSessionHistoryInfo()
     const {
   return mActiveEntry.get();

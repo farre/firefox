@@ -482,6 +482,9 @@ class nsDocShell final : public nsDocLoader,
       mozilla::dom::BrowsingContext* aBrowsingContext, uint32_t aLoadType,
       bool aIsDocumentLoad = true);
 
+  void ActivateHistoryEntry(
+      std::unique_ptr<mozilla::dom::SessionHistoryInfo> aSessionHistoryInfo);
+
   mozilla::dom::SessionHistoryInfo* GetActiveSessionHistoryInfo() const;
 
   void SetLoadingSessionHistoryInfo(
